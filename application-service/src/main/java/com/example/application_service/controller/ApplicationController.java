@@ -18,10 +18,7 @@ public class ApplicationController {
 
     @PostMapping
     public ResponseEntity<String> createApplication(@RequestBody ApplicationRequestDTO request) {
-        // İsteği al ve servise pasla
         applicationService.createApplication(request);
-
-        // İşlem bittiğinde başarılı cevabını dön
         return ResponseEntity.ok("Başvuru başarıyla oluşturuldu.");
     }
 }

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-// Product Service'in çalıştığı adres (8082)
+// Product Service'in çalıştığı adres
 @FeignClient(name = "product-client", url = "http://localhost:8082")
 public interface ProductClient {
 

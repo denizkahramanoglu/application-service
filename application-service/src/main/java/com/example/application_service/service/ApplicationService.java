@@ -19,12 +19,8 @@ public class ApplicationService {
 
     public void createApplication(ApplicationRequestDTO request) {
 
-        // 1. Feign ile Product Service'e istek at (8081 veya 8082'ye)
         ResponseEntity<InsuranceProductResponseDTO> productResponse = productClient.getProduct(request.getProductId());
-
-        // 2. Dönen veriyi kontrol et (eğer response başarılı değilse hata fırlatabilirsin)
         InsuranceProductResponseDTO product = productResponse.getBody();
-
         if (product == null) {
             throw new IllegalArgumentException("Ürün bulunamadı, başvuru oluşturulamaz.");
         }
