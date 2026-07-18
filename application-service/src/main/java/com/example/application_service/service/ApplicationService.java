@@ -35,4 +35,5 @@ public class ApplicationService {
         // 4. Veritabanına kaydet
         applicationRepository.save(application);
     }
+
 }

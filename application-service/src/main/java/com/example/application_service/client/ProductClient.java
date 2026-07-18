@@ -13,11 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "product-client", url = "http://localhost:8082")
 public interface ProductClient {
 
-    @PostMapping
+    @PostMapping("/api/products/")
     public ResponseEntity<InsuranceProductResponseDTO> createProduct(@RequestBody InsuranceProductRequestDTO requestDto);
 
     @GetMapping("/api/products/{id}")
     public ResponseEntity<InsuranceProductResponseDTO> getProduct(@PathVariable Long id);
-
 
 }

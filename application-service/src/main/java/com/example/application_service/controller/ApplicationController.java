@@ -21,4 +21,5 @@ public class ApplicationController {
         applicationService.createApplication(request);
         return ResponseEntity.ok("Başvuru başarıyla oluşturuldu.");
     }
+
 }
