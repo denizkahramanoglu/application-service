@@ -32,6 +32,7 @@ public class ApplicationController {
 
     @Operation(summary = "Başvuru güncelleme")
     @PutMapping("/{id}")
+
     public ResponseEntity<ApplicationResponseDTO> updateApplication(@PathVariable Long id, @RequestBody ApplicationRequestDTO request)
     {
         ApplicationResponseDTO response = applicationService.updateApplication(id, request);
