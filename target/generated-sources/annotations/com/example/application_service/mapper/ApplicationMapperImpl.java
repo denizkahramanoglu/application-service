@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-07-20T23:02:25+0300",
+    date = "2026-07-26T20:58:58+0300",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 24.0.1 (Oracle Corporation)"
 )
 @Component
@@ -20,11 +20,11 @@ public class ApplicationMapperImpl implements ApplicationMapper {
             return null;
         }
 
-        ApplicationEntity.ApplicationEntityBuilder applicationEntity = ApplicationEntity.builder();
+        ApplicationEntity applicationEntity = new ApplicationEntity();
 
-        applicationEntity.customerId( dto.getCustomerId() );
+        applicationEntity.setCustomerId( dto.getCustomerId() );
 
-        return applicationEntity.build();
+        return applicationEntity;
     }
 
     @Override
