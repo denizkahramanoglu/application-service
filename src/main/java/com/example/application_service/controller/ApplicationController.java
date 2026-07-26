@@ -22,6 +22,7 @@ public class ApplicationController {
         applicationService.createApplication(request);
         return ResponseEntity.status(HttpStatus.CREATED).body("Başvuru başarıyla oluşturuldu.");
     }
+
     @Operation(summary = "ID ile başvuru getirme")
     @GetMapping("/{id}")
     public ResponseEntity<ApplicationResponseDTO> getApplication(@PathVariable Long id) {
