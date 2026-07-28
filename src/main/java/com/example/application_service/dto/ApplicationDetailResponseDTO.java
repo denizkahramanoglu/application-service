@@ -8,15 +8,18 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class ApplicationResponseDTO {
-    private Long id;
-    private Long customerId;
-    private Long productId;
+public class ApplicationDetailResponseDTO {
+
+    // Başvuruya ait temel bilgiler
+    private Long applicationId;
     private BigDecimal price;
     private String currency;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+
+    // Dış servislerden gelecek zenginleştirilmiş nesneler
+    private CustomerResponseDTO customer;
+    private InsuranceProductResponseDTO product;
 }

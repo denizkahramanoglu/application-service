@@ -1,5 +1,6 @@
 package com.example.application_service.service;
 
+import com.example.application_service.client.CustomerClient;
 import com.example.application_service.client.ProductClient;
 import com.example.application_service.dto.*;
 import com.example.application_service.entity.ApplicationEntity;
@@ -7,8 +8,6 @@ import com.example.application_service.exception.BusinessException;
 import com.example.application_service.mapper.ApplicationMapper;
 import com.example.application_service.repository.ApplicationRepository;
 import feign.FeignException;
-import feign.Request;
-import feign.RequestTemplate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,292 +16,772 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationServiceTest {
 
-    @Mock private ProductClient productClient;
-    @Mock private ApplicationRepository applicationRepository;
-    @Mock private ApplicationMapper applicationMapper;
+    @Mock
+    private ProductClient productClient;
 
-    @InjectMocks private ApplicationService applicationService;
+    @Mock
+    private CustomerClient customerClient;
 
-    // ==========================================
-    // CREATE APPLICATION TESTS
-    // ==========================================
+    @Mock
+    private ApplicationRepository applicationRepository;
+
+    @Mock
+    private ApplicationMapper applicationMapper;
+
+    @InjectMocks
+    private ApplicationService applicationService;
+
+
+    // =========================================================
+    // CREATE APPLICATION
+    // =========================================================
 
     @Test
-    void createApplication_Success() {
+    void createApplication_shouldCreateSuccessfully() {
+
         ApplicationRequestDTO request = new ApplicationRequestDTO();
-        request.setProductId(1L);
+        request.setCustomerId(1L);
+        request.setProductId(2L);
 
-        InsuranceProductResponseDTO product = new InsuranceProductResponseDTO();
-        product.setProductId(1L);
-        product.setPrice(new BigDecimal("100.00"));
+        CustomerResponseDTO customer = new CustomerResponseDTO();
+        customer.setId(1L);
 
-        ApplicationEntity entity = new ApplicationEntity();
+        InsuranceProductResponseDTO product =
+                new InsuranceProductResponseDTO();
+        product.setProductId(2L);
 
-        when(productClient.getProduct(1L)).thenReturn(product);
-        when(applicationMapper.toEntity(request)).thenReturn(entity);
+        PricingResponseDTO pricingResponse =
+                new PricingResponseDTO();
+        pricingResponse.setFinalPrice(BigDecimal.valueOf(856.03));
+        pricingResponse.setCurrency("EUR");
 
-        applicationService.createApplication(request);
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        verify(applicationRepository).save(entity);
-        assertEquals(1L, entity.getProductId());
-        assertEquals(new BigDecimal("100.00"), entity.getPrice());
+        ApplicationEntity savedApplication =
+                new ApplicationEntity();
+        savedApplication.setId(10L);
+        savedApplication.setCustomerId(1L);
+        savedApplication.setProductId(2L);
+        savedApplication.setPrice(BigDecimal.valueOf(856.03));
+        savedApplication.setCurrency("EUR");
+
+        ApplicationResponseDTO response =
+                new ApplicationResponseDTO();
+
+        when(customerClient.getCustomerById(1L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(2L))
+                .thenReturn(product);
+
+        when(applicationMapper.toPricingRequest(
+                customer,
+                product,
+                request
+        )).thenReturn(new PricingRequestDTO());
+
+        when(productClient.calculatePrice(any(PricingRequestDTO.class)))
+                .thenReturn(pricingResponse);
+
+        when(applicationMapper.toEntity(request))
+                .thenReturn(application);
+
+        when(applicationRepository.save(application))
+                .thenReturn(savedApplication);
+
+        when(applicationMapper.toResponseDTO(savedApplication))
+                .thenReturn(response);
+
+        ApplicationResponseDTO result =
+                applicationService.createApplication(request);
+
+        assertNotNull(result);
+
+        assertEquals(2L, application.getProductId());
+        assertEquals(BigDecimal.valueOf(856.03), application.getPrice());
+        assertEquals("EUR", application.getCurrency());
+
+        verify(customerClient).getCustomerById(1L);
+        verify(productClient).getProduct(2L);
+        verify(productClient).calculatePrice(any(PricingRequestDTO.class));
+        verify(applicationRepository).save(application);
+        verify(applicationMapper).toResponseDTO(savedApplication);
     }
 
+
     @Test
-    void createApplication_ProductNull_ThrowsBusinessException() {
+    void createApplication_shouldThrow_whenCustomerNotFound() {
+
         ApplicationRequestDTO request = new ApplicationRequestDTO();
-        request.setProductId(1L);
+        request.setCustomerId(1L);
+        request.setProductId(2L);
 
-        when(productClient.getProduct(1L)).thenReturn(null);
+        when(customerClient.getCustomerById(1L))
+                .thenReturn(null);
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.createApplication(request));
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.createApplication(request)
+        );
 
-        assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatus());
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+        assertEquals(
+                "Müşteri bulunamadı. Hatalı Müşteri ID: 1",
+                exception.getMessage()
+        );
+
+        verify(customerClient).getCustomerById(1L);
+        verifyNoInteractions(productClient);
+        verifyNoInteractions(applicationRepository);
     }
 
+
     @Test
-    void createApplication_ProductNotFound_ThrowsBusinessException() {
+    void createApplication_shouldThrow_whenProductIsNull() {
+
         ApplicationRequestDTO request = new ApplicationRequestDTO();
-        request.setProductId(1L);
+        request.setCustomerId(1L);
+        request.setProductId(2L);
 
-        Request mockRequest = Request.create(Request.HttpMethod.GET, "url", new HashMap<>(), null, new RequestTemplate());
-        when(productClient.getProduct(1L)).thenThrow(new FeignException.NotFound("", mockRequest, null, null));
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.createApplication(request));
+        when(customerClient.getCustomerById(1L))
+                .thenReturn(customer);
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
+        when(productClient.getProduct(2L))
+                .thenReturn(null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.createApplication(request)
+        );
+
+        assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
+
+        verify(customerClient).getCustomerById(1L);
+        verify(productClient).getProduct(2L);
+        verifyNoInteractions(applicationRepository);
     }
 
+
     @Test
-    void createApplication_FeignGeneralException_ThrowsBusinessException() {
+    void createApplication_shouldThrowNotFound_whenProductNotFound() {
+
         ApplicationRequestDTO request = new ApplicationRequestDTO();
-        request.setProductId(1L);
+        request.setCustomerId(1L);
+        request.setProductId(2L);
 
-        Request mockRequest = Request.create(Request.HttpMethod.GET, "url", new HashMap<>(), null, new RequestTemplate());
-        when(productClient.getProduct(1L)).thenThrow(new FeignException.ServiceUnavailable("", mockRequest, null, null));
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.createApplication(request));
+        when(customerClient.getCustomerById(1L))
+                .thenReturn(customer);
 
-        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatus());
+        FeignException.NotFound exception =
+                mock(FeignException.NotFound.class);
+
+        when(productClient.getProduct(2L))
+                .thenThrow(exception);
+
+        BusinessException result = assertThrows(
+                BusinessException.class,
+                () -> applicationService.createApplication(request)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, result.getStatus());
+
+        verify(productClient).getProduct(2L);
+        verifyNoInteractions(applicationRepository);
     }
 
-    // ==========================================
-    // GET APPLICATION TESTS
-    // ==========================================
 
     @Test
-    void getApplication_NotFound_ThrowsBusinessException() {
-        when(applicationRepository.findById(1L)).thenReturn(Optional.empty());
+    void createApplication_shouldThrowServiceUnavailable_whenProductServiceFails() {
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.getApplication(1L));
-
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
-    }
-
-    @Test
-    void getApplication_Success() {
-        ApplicationEntity entity = new ApplicationEntity();
-        when(applicationRepository.findById(1L)).thenReturn(Optional.of(entity));
-        when(applicationMapper.toResponseDTO(entity)).thenReturn(new ApplicationResponseDTO());
-
-        assertNotNull(applicationService.getApplication(1L));
-    }
-
-    // ==========================================
-    // UPDATE APPLICATION TESTS
-    // ==========================================
-
-    @Test
-    void updateApplication_Success_SameProduct() {
         ApplicationRequestDTO request = new ApplicationRequestDTO();
-        request.setCustomerId(2L);
-        request.setProductId(1L); // Aynı ürün
+        request.setCustomerId(1L);
+        request.setProductId(2L);
 
-        ApplicationEntity existingEntity = new ApplicationEntity();
-        existingEntity.setId(1L);
-        existingEntity.setCustomerId(1L);
-        existingEntity.setProductId(1L);
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
 
-        when(applicationRepository.findById(1L)).thenReturn(Optional.of(existingEntity));
-        when(applicationRepository.save(any(ApplicationEntity.class))).thenReturn(existingEntity);
-        when(applicationMapper.toResponseDTO(existingEntity)).thenReturn(new ApplicationResponseDTO());
+        when(customerClient.getCustomerById(1L))
+                .thenReturn(customer);
 
-        ApplicationResponseDTO response = applicationService.updateApplication(1L, request);
+        FeignException exception =
+                mock(FeignException.class);
 
-        assertNotNull(response);
-        verify(applicationRepository).save(existingEntity);
-        assertEquals(2L, existingEntity.getCustomerId());
-        assertEquals(1L, existingEntity.getProductId()); // Ürün değişmedi
+        when(productClient.getProduct(2L))
+                .thenThrow(exception);
+
+        BusinessException result = assertThrows(
+                BusinessException.class,
+                () -> applicationService.createApplication(request)
+        );
+
+        assertEquals(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                result.getStatus()
+        );
+
+        verify(productClient).getProduct(2L);
+        verifyNoInteractions(applicationRepository);
     }
+
+
+    // =========================================================
+    // GET APPLICATION DETAILS
+    // =========================================================
 
     @Test
-    void updateApplication_Success_DifferentProduct() {
-        ApplicationRequestDTO request = new ApplicationRequestDTO();
-        request.setCustomerId(2L);
-        request.setProductId(99L); // Farklı bir ürün ID
+    void getApplicationDetails_shouldReturnSuccessfully() {
 
-        ApplicationEntity existingEntity = new ApplicationEntity();
-        existingEntity.setId(1L);
-        existingEntity.setCustomerId(1L);
-        existingEntity.setProductId(1L);
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        when(applicationRepository.findById(1L)).thenReturn(Optional.of(existingEntity));
-        when(applicationRepository.save(any(ApplicationEntity.class))).thenReturn(existingEntity);
-        when(applicationMapper.toResponseDTO(existingEntity)).thenReturn(new ApplicationResponseDTO());
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        applicationService.updateApplication(1L, request);
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+        customer.setId(10L);
 
-        verify(applicationRepository).save(existingEntity);
-        assertEquals(99L, existingEntity.getProductId()); // Ürün ID güncellenmiş olmalı
+        InsuranceProductResponseDTO product =
+                new InsuranceProductResponseDTO();
+        product.setProductId(20L);
+
+        ApplicationDetailResponseDTO response =
+                new ApplicationDetailResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenReturn(product);
+
+        when(applicationMapper.toDetailResponse(
+                application,
+                customer,
+                product
+        )).thenReturn(response);
+
+        ApplicationDetailResponseDTO result =
+                applicationService.getApplicationDetails(1L);
+
+        assertNotNull(result);
+
+        verify(applicationRepository).findById(1L);
+        verify(customerClient).getCustomerById(10L);
+        verify(productClient).getProduct(20L);
+        verify(applicationMapper)
+                .toDetailResponse(application, customer, product);
     }
+
 
     @Test
-    void updateApplication_NotFound_ThrowsBusinessException() {
-        ApplicationRequestDTO request = new ApplicationRequestDTO();
+    void getApplicationDetails_shouldThrow_whenApplicationNotFound() {
 
-        when(applicationRepository.findById(1L)).thenReturn(Optional.empty());
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.empty());
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.updateApplication(1L, request));
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(applicationRepository).findById(1L);
+        verifyNoInteractions(customerClient);
+        verifyNoInteractions(productClient);
     }
 
-    // ==========================================
-    // CALCULATE FINAL PREMIUM TESTS
-    // ==========================================
 
     @Test
-    void calculateFinalPremiumForCustomer_Success_TRY() {
-        LifePremiumRequestDTO request = new LifePremiumRequestDTO();
+    void getApplicationDetails_shouldThrowNotFound_whenCustomerNotFound() {
 
-        LifePremiumResponseDTO response = new LifePremiumResponseDTO();
-        response.setCalculatedPremium(1000L);
-        response.setCurrency("TRY");
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        when(productClient.calculatePremium(request)).thenReturn(response);
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        Long finalPremium = applicationService.calculateFinalPremiumForCustomer(request);
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
 
-        // TRY geldiği için kur çarpımı yapılmaz (veya 1 ile çarpılır), sonuç 1000 olmalı
-        assertEquals(1000L, finalPremium);
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(customerClient).getCustomerById(10L);
+        verifyNoInteractions(productClient);
+        verifyNoInteractions(applicationMapper);
     }
+
 
     @Test
-    void calculateFinalPremiumForCustomer_NullResponse_ThrowsBusinessException() {
-        LifePremiumRequestDTO request = new LifePremiumRequestDTO();
+    void getApplicationDetails_shouldThrowNotFound_whenCustomerFeignReturns404() {
 
-        when(productClient.calculatePremium(request)).thenReturn(null);
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.calculateFinalPremiumForCustomer(request));
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatus());
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenThrow(mock(FeignException.NotFound.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(customerClient).getCustomerById(10L);
+        verifyNoInteractions(productClient);
     }
+
 
     @Test
-    void calculateFinalPremiumForCustomer_BadRequest_ThrowsBusinessException() {
-        LifePremiumRequestDTO request = new LifePremiumRequestDTO();
+    void getApplicationDetails_shouldThrowServiceUnavailable_whenCustomerServiceFails() {
 
-        Request mockRequest = Request.create(Request.HttpMethod.POST, "url", new HashMap<>(), null, new RequestTemplate());
-        when(productClient.calculatePremium(request)).thenThrow(new FeignException.BadRequest("", mockRequest, null, null));
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.calculateFinalPremiumForCustomer(request));
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenThrow(mock(FeignException.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
+
+        assertEquals(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                exception.getStatus()
+        );
+
+        verify(customerClient).getCustomerById(10L);
+        verifyNoInteractions(productClient);
     }
+
 
     @Test
-    void calculateFinalPremiumForCustomer_NotFound_ThrowsBusinessException() {
-        LifePremiumRequestDTO request = new LifePremiumRequestDTO();
+    void getApplicationDetails_shouldThrow_whenProductIsNull() {
 
-        Request mockRequest = Request.create(Request.HttpMethod.POST, "url", new HashMap<>(), null, new RequestTemplate());
-        when(productClient.calculatePremium(request)).thenThrow(new FeignException.NotFound("", mockRequest, null, null));
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.calculateFinalPremiumForCustomer(request));
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenReturn(null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(productClient).getProduct(20L);
+        verifyNoInteractions(applicationMapper);
     }
+
 
     @Test
-    void calculateFinalPremiumForCustomer_ServiceUnavailable_ThrowsBusinessException() {
-        LifePremiumRequestDTO request = new LifePremiumRequestDTO();
+    void getApplicationDetails_shouldThrowNotFound_whenProductNotFound() {
 
-        Request mockRequest = Request.create(Request.HttpMethod.POST, "url", new HashMap<>(), null, new RequestTemplate());
-        when(productClient.calculatePremium(request)).thenThrow(new FeignException.ServiceUnavailable("", mockRequest, null, null));
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                applicationService.calculateFinalPremiumForCustomer(request));
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatus());
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenThrow(mock(FeignException.NotFound.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(productClient).getProduct(20L);
+        verifyNoInteractions(applicationMapper);
     }
+
+
     @Test
-    void calculateFinalPremiumForCustomer_Success() {
-        LifePremiumRequestDTO request = new LifePremiumRequestDTO();
-        request.setRequestedCurrency("USD"); // Müşteri USD istedi
+    void getApplicationDetails_shouldThrowServiceUnavailable_whenProductServiceFails() {
 
-        LifePremiumResponseDTO response = new LifePremiumResponseDTO();
-        response.setCalculatedPremium(5000L); // Product 5000 hesapladı
-        response.setCurrency("USD");
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-        when(productClient.calculatePremium(request)).thenReturn(response);
+        application.setId(1L);
+        application.setCustomerId(10L);
+        application.setProductId(20L);
 
-        Long finalPremium = applicationService.calculateFinalPremiumForCustomer(request);
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
 
-        // Hiçbir çarpım yapılmadan doğrudan 5000 dönmeli
-        assertEquals(5000L, finalPremium);
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenThrow(mock(FeignException.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.getApplicationDetails(1L)
+        );
+
+        assertEquals(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                exception.getStatus()
+        );
+
+        verify(productClient).getProduct(20L);
+        verifyNoInteractions(applicationMapper);
     }
-        @Test
-        void deleteApplication_ShouldDelete_WhenApplicationExists() {
-            // Arrange (Hazırlık)
-            Long applicationId = 1L;
-            ApplicationEntity mockApplication = new ApplicationEntity();
-            mockApplication.setId(applicationId);
 
-            // Repository'den bu ID arandığında mockApplication dönsün
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(mockApplication));
 
-            // Act (Eylem)
-            applicationService.deleteApplication(applicationId);
+    // =========================================================
+    // UPDATE APPLICATION
+    // =========================================================
 
-            // Assert (Doğrulama)
-            // applicationRepository'nin delete metodu mockApplication ile 1 kere çağrılmış mı kontrol et
-            verify(applicationRepository, times(1)).delete(mockApplication);
-        }
+    @Test
+    void updateApplication_shouldUpdateSuccessfully() {
 
-        @Test
-        void deleteApplication_ShouldThrowException_WhenApplicationNotFound() {
-            // Arrange (Hazırlık)
-            Long applicationId = 1L;
+        ApplicationRequestDTO request =
+                new ApplicationRequestDTO();
 
-            // Repository'den bu ID arandığında boş (Empty) dönsün
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.empty());
+        request.setCustomerId(10L);
+        request.setProductId(20L);
 
-            // Act & Assert (Eylem ve Doğrulama)
-            BusinessException exception = assertThrows(BusinessException.class, () -> {
-                applicationService.deleteApplication(applicationId);
-            });
+        ApplicationEntity application =
+                new ApplicationEntity();
 
-            // Fırlatılan hatanın statü kodunun NOT_FOUND (404) olduğunu doğrula
-            assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
-            assertTrue(exception.getMessage().contains("bulunamadı"));
+        application.setId(1L);
 
-            // Hata fırlatıldığı için delete işleminin HİÇ ÇAĞRILMADIĞINI doğrula
-            verify(applicationRepository, never()).delete(any());
-        }
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+        customer.setId(10L);
+
+        InsuranceProductResponseDTO product =
+                new InsuranceProductResponseDTO();
+        product.setProductId(20L);
+
+        PricingResponseDTO pricingResponse =
+                new PricingResponseDTO();
+
+        pricingResponse.setFinalPrice(BigDecimal.valueOf(856.03));
+        pricingResponse.setCurrency("EUR");
+
+        ApplicationEntity updatedEntity =
+                new ApplicationEntity();
+
+        updatedEntity.setId(1L);
+
+        ApplicationResponseDTO response =
+                new ApplicationResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenReturn(product);
+
+        when(applicationMapper.toPricingRequest(
+                customer,
+                product,
+                request
+        )).thenReturn(new PricingRequestDTO());
+
+        when(productClient.calculatePrice(any(PricingRequestDTO.class)))
+                .thenReturn(pricingResponse);
+
+        when(applicationRepository.save(application))
+                .thenReturn(updatedEntity);
+
+        when(applicationMapper.toResponseDTO(updatedEntity))
+                .thenReturn(response);
+
+        ApplicationResponseDTO result =
+                applicationService.updateApplication(1L, request);
+
+        assertNotNull(result);
+
+        assertEquals(10L, application.getCustomerId());
+        assertEquals(20L, application.getProductId());
+        assertEquals(BigDecimal.valueOf(856.03), application.getPrice());
+        assertEquals("EUR", application.getCurrency());
+
+        verify(applicationRepository).save(application);
+        verify(applicationMapper).toResponseDTO(updatedEntity);
+    }
+
+
+    @Test
+    void updateApplication_shouldThrow_whenApplicationNotFound() {
+
+        ApplicationRequestDTO request =
+                new ApplicationRequestDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.updateApplication(1L, request)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(applicationRepository).findById(1L);
+        verifyNoInteractions(customerClient);
+        verifyNoInteractions(productClient);
+    }
+
+
+    @Test
+    void updateApplication_shouldThrow_whenCustomerNotFound() {
+
+        ApplicationRequestDTO request =
+                new ApplicationRequestDTO();
+
+        request.setCustomerId(10L);
+        request.setProductId(20L);
+
+        ApplicationEntity application =
+                new ApplicationEntity();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.updateApplication(1L, request)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(customerClient).getCustomerById(10L);
+        verifyNoInteractions(productClient);
+        verify(applicationRepository, never()).save(any());
+    }
+
+
+    @Test
+    void updateApplication_shouldThrow_whenProductIsNull() {
+
+        ApplicationRequestDTO request =
+                new ApplicationRequestDTO();
+
+        request.setCustomerId(10L);
+        request.setProductId(20L);
+
+        ApplicationEntity application =
+                new ApplicationEntity();
+
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenReturn(null);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.updateApplication(1L, request)
+        );
+
+        assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
+
+        verify(productClient).getProduct(20L);
+        verify(applicationRepository, never()).save(any());
+    }
+
+
+    @Test
+    void updateApplication_shouldThrowNotFound_whenProductNotFound() {
+
+        ApplicationRequestDTO request =
+                new ApplicationRequestDTO();
+
+        request.setCustomerId(10L);
+        request.setProductId(20L);
+
+        ApplicationEntity application =
+                new ApplicationEntity();
+
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenThrow(mock(FeignException.NotFound.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.updateApplication(1L, request)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(applicationRepository, never()).save(any());
+    }
+
+
+    @Test
+    void updateApplication_shouldThrowServiceUnavailable_whenProductServiceFails() {
+
+        ApplicationRequestDTO request =
+                new ApplicationRequestDTO();
+
+        request.setCustomerId(10L);
+        request.setProductId(20L);
+
+        ApplicationEntity application =
+                new ApplicationEntity();
+
+        CustomerResponseDTO customer =
+                new CustomerResponseDTO();
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        when(customerClient.getCustomerById(10L))
+                .thenReturn(customer);
+
+        when(productClient.getProduct(20L))
+                .thenThrow(mock(FeignException.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.updateApplication(1L, request)
+        );
+
+        assertEquals(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                exception.getStatus()
+        );
+
+        verify(applicationRepository, never()).save(any());
+    }
+
+
+    // =========================================================
+    // DELETE APPLICATION
+    // =========================================================
+
+    @Test
+    void deleteApplication_shouldDeleteSuccessfully() {
+
+        ApplicationEntity application =
+                new ApplicationEntity();
+
+        application.setId(1L);
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.of(application));
+
+        applicationService.deleteApplication(1L);
+
+        verify(applicationRepository).findById(1L);
+        verify(applicationRepository).delete(application);
+    }
+
+
+    @Test
+    void deleteApplication_shouldThrow_whenApplicationNotFound() {
+
+        when(applicationRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> applicationService.deleteApplication(1L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+
+        verify(applicationRepository).findById(1L);
+        verify(applicationRepository, never()).delete(any());
+    }
 }

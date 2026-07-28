@@ -15,7 +15,13 @@
             <column name="product_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
-            <column name="price" type="DECIMAL(10,2)"/>
+            <column name="price" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+
 
             <!-- Audit Alanları -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
@@ -24,5 +30,4 @@
             <column name="updated_by" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
-
 </databaseChangeLog>

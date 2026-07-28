@@ -14,4 +14,5 @@ public class InsuranceProductResponseDTO {
     private Long productId;
     private String name;
     private BigDecimal price;
+    private String code;
 }
