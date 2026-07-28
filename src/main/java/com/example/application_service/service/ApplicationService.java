@@ -55,9 +55,7 @@ public class ApplicationService {
         ApplicationEntity application = getApplicationById(applicationId);
         CustomerResponseDTO customer = getCustomerSafely(request.getCustomerId());
         InsuranceProductResponseDTO product = getProductSafely(request.getProductId());
-        PricingResponseDTO pricingResponse = productClient.calculatePrice(applicationMapper.toPricingRequest(customer, product, request)
-        );
-
+        PricingResponseDTO pricingResponse = productClient.calculatePrice(applicationMapper.toPricingRequest(customer, product, request));
         application.setCustomerId(request.getCustomerId());
         application.setProductId(product.getProductId());
         application.setPrice(pricingResponse.getFinalPrice());
