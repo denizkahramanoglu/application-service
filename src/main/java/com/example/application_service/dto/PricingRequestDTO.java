@@ -8,17 +8,16 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-public class ApplicationRequestDTO {
-    private Long customerId;
+@AllArgsConstructor
+@NoArgsConstructor
+public class PricingRequestDTO {
     private Long productId;
+    private int age;
+    private String gender;
     private double height;
     private double weight;
     private Long occupationId;
     private boolean smoker;
     private List<Long> personalDiseaseIds;
-
 }
-

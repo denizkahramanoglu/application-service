@@ -32,6 +32,9 @@ public class ApplicationEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(nullable = false, length = 3)
+    private String currency;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -48,4 +51,5 @@ public class ApplicationEntity {
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false;
+
 }

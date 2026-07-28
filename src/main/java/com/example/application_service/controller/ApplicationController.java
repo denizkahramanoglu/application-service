@@ -1,5 +1,6 @@
 package com.example.application_service.controller;
 
+import com.example.application_service.dto.ApplicationDetailResponseDTO;
 import com.example.application_service.dto.ApplicationRequestDTO;
 import com.example.application_service.dto.ApplicationResponseDTO;
 import com.example.application_service.service.ApplicationService;
@@ -23,20 +24,19 @@ public class ApplicationController {
         return ResponseEntity.status(HttpStatus.CREATED).body("Başvuru başarıyla oluşturuldu.");
     }
 
-    @Operation(summary = "ID ile başvuru getirme")
+    @Operation(summary ="id ile bütün bilgileri getirme")
     @GetMapping("/{id}")
-    public ResponseEntity<ApplicationResponseDTO> getApplication(@PathVariable Long id) {
-        ApplicationResponseDTO response = applicationService.getApplication(id);
+    public ResponseEntity<ApplicationDetailResponseDTO> getApplication(@PathVariable Long id) {
+        ApplicationDetailResponseDTO response = applicationService.getApplicationDetails(id);
         return ResponseEntity.ok(response);
     }
-
-    @Operation(summary = "Başvuru güncelleme")
+    @Operation(summary ="id ile bilgi güncelleme")
     @PutMapping("/{id}")
+    public ApplicationResponseDTO updateApplication(
+            @PathVariable Long id,
+            @RequestBody ApplicationRequestDTO request) {
 
-    public ResponseEntity<ApplicationResponseDTO> updateApplication(@PathVariable Long id, @RequestBody ApplicationRequestDTO request)
-    {
-        ApplicationResponseDTO response = applicationService.updateApplication(id, request);
-        return ResponseEntity.ok(response);
+        return applicationService.updateApplication(id, request);
     }
 
     @Operation(summary = "Başvuru silme")
