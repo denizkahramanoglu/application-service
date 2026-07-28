@@ -167,7 +167,7 @@ class ApplicationServiceTest {
                 () -> applicationService.createApplication(request)
         );
 
-        assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
 
         verify(customerClient).getCustomerById(1L);
         verify(productClient).getProduct(2L);
@@ -666,7 +666,7 @@ class ApplicationServiceTest {
                 () -> applicationService.updateApplication(1L, request)
         );
 
-        assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
 
         verify(productClient).getProduct(20L);
         verify(applicationRepository, never()).save(any());

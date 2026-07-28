@@ -93,7 +93,7 @@ public class ApplicationService {
     private InsuranceProductResponseDTO getProductSafely(Long productId) {
         try {
             InsuranceProductResponseDTO product = productClient.getProduct(productId);
-            BusinessExceptionUtil.businessExceptionCheckerAndThrowException(product == null, "Ürün servisi başarılı yanıt verdi ancak ürün verisi (body) boş.", HttpStatus.BAD_GATEWAY);
+            BusinessExceptionUtil.businessExceptionCheckerAndThrowException(product == null, "Ürün servisi başarılı yanıt verdi ancak ürün verisi (body) boş.", HttpStatus.NOT_FOUND);
             return product;
         } catch (FeignException.NotFound e) {
             throw new BusinessException("Ürün bulunamadı. Hatalı Ürün ID: " + productId, HttpStatus.NOT_FOUND);
