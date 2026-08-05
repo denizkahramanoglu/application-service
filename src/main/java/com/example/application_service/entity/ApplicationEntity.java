@@ -1,5 +1,7 @@
 package com.example.application_service.entity;
 
+import com.example.application_service.enums.ApplicationStatus;
+import com.example.application_service.enums.PaymentMethod;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -34,6 +36,20 @@ public class ApplicationEntity {
 
     @Column(nullable = false, length = 3)
     private String currency;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private ApplicationStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", length = 20)
+    private PaymentMethod paymentMethod;
+
+    @Column(name = "installment_count")
+    private Integer installmentCount;
+
+    @Column(name = "card_id")
+    private Long cardId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

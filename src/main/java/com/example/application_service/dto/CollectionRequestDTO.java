@@ -5,23 +5,33 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ApplicationDetailResponseDTO {
+@Builder
+public class CollectionRequestDTO {
 
     private Long applicationId;
-    private BigDecimal price;
+    private Long customerId;
+    private BigDecimal amount;
     private String currency;
-    private LocalDateTime createdAt;
     private PaymentMethod paymentMethod;
     private Integer installmentCount;
     private Long cardId;
-
+    private String cvcNo;
+    
+    // Application-service'ten gelen müşteri bilgileri
     private CustomerResponseDTO customer;
+    
+    // Müşterinin kartları (kredi kartı ödeme için gerekli)
+    private List<CustomerCardResponseDTO> cards;
+    
+    // Sigorta ürün bilgileri (Iyzico ödemesi için gerekli)
     private InsuranceProductResponseDTO product;
 }
+
+
