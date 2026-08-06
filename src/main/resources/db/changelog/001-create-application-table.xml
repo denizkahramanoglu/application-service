@@ -21,6 +21,19 @@
             <column name="currency" type="VARCHAR(3)">
                 <constraints nullable="false"/>
             </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="PENDING_PAYMENT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_method" type="VARCHAR(20)">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="installment_count" type="INT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="card_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
 
 
             <!-- Audit Alanları -->

@@ -1,5 +1,7 @@
 package com.example.application_service.dto;
 
+import com.example.application_service.enums.PaymentMethod;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,5 +22,9 @@ public class ApplicationRequestDTO {
     private boolean smoker;
     private List<Long> personalDiseaseIds;
 
+    @NotNull(message = "Ödeme yöntemi seçilmelidir")
+    private PaymentMethod paymentMethod;
+
+    private Long cardId;
 }
 

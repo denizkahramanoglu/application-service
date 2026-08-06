@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class CustomerResponseDTO {
@@ -21,5 +22,6 @@ public class CustomerResponseDTO {
     private String createdBy;
     private String updatedBy;
     private String gender;
-
+    private String email;
+    private List<CustomerCardResponseDTO> cards;
 }
