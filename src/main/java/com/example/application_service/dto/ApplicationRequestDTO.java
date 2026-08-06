@@ -2,7 +2,6 @@ package com.example.application_service.dto;
 
 import com.example.application_service.enums.PaymentMethod;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,10 +25,6 @@ public class ApplicationRequestDTO {
     @NotNull(message = "Ödeme yöntemi seçilmelidir")
     private PaymentMethod paymentMethod;
 
-    @Positive(message = "Taksit sayısı 1 veya daha büyük olmalıdır")
-    private Integer installmentCount;
-
     private Long cardId;
-    private String cvcNo;
 }
 

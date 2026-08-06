@@ -21,6 +21,7 @@ public class ApplicationController {
     @PostMapping
     public ResponseEntity<String> createApplication(@RequestBody ApplicationRequestDTO request) {
         applicationService.createApplication(request);
+
         return ResponseEntity.status(HttpStatus.CREATED).body("Başvuru başarıyla oluşturuldu.");
     }
 
@@ -28,8 +29,10 @@ public class ApplicationController {
     @GetMapping("/{id}")
     public ResponseEntity<ApplicationDetailResponseDTO> getApplication(@PathVariable Long id) {
         ApplicationDetailResponseDTO response = applicationService.getApplicationDetails(id);
+
         return ResponseEntity.ok(response);
     }
+
     @Operation(summary ="id ile bilgi güncelleme")
     @PutMapping("/{id}")
     public ApplicationResponseDTO updateApplication(
@@ -43,6 +46,7 @@ public class ApplicationController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
         applicationService.deleteApplication(id);
+
         return ResponseEntity.noContent().build();
 
     }

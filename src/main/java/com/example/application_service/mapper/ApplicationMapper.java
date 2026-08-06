@@ -37,7 +37,6 @@ public interface ApplicationMapper {
     @Mapping(target = "paymentMethod", source = "application.paymentMethod")
     @Mapping(target = "installmentCount", source = "application.installmentCount")
     @Mapping(target = "cardId", source = "application.cardId")
-    @Mapping(target = "cvcNo", source = "request.cvcNo")
     @Mapping(target = "customer", source = "customer")
     @Mapping(target = "cards", source = "customer.cards")
     @Mapping(target = "product", source = "product")

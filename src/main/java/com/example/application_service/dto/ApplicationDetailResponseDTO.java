@@ -21,7 +21,6 @@ public class ApplicationDetailResponseDTO {
     private PaymentMethod paymentMethod;
     private Integer installmentCount;
     private Long cardId;
-
     private CustomerResponseDTO customer;
     private InsuranceProductResponseDTO product;
 }

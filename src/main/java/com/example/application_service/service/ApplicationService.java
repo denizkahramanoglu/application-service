@@ -12,7 +12,6 @@ import com.example.application_service.mapper.ApplicationMapper;
 import com.example.application_service.repository.ApplicationRepository;
 import com.example.application_service.util.BusinessExceptionUtil;
 import com.example.application_service.util.FeignIntegrationUtil;
-import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -63,9 +62,6 @@ public class ApplicationService {
         setPaymentInfo(application, request);
 
         ApplicationEntity savedApplication = applicationRepository.save(application);
-
-        initiateCollectionProcess(savedApplication, request, customer, product);
-
         return applicationMapper.toResponseDTO(savedApplication);
     }
 
@@ -106,7 +102,9 @@ public class ApplicationService {
         application.setProductId(product.getProductId());
         application.setPrice(pricingResponse.getFinalPrice());
         application.setCurrency(pricingResponse.getCurrency());
+
         setPaymentInfo(application, request);
+
         ApplicationEntity updatedApplication = applicationRepository.save(application);
 
         return applicationMapper.toResponseDTO(updatedApplication);
@@ -126,52 +124,77 @@ public class ApplicationService {
 
     /* --- PRIVATE METOTLAR --- */
 
+    /**
+     * Ödeme yönteminin seçili olup olmadığını kontrol eder ve ödeme tipine göre detaylı doğrulama yapar.
+     *
+     * @param request Doğrulanacak başvuru verilerini içeren {@link ApplicationRequestDTO} nesnesi
+     * @throws BusinessException Ödeme yöntemi boş bırakıldıysa veya kredi kartı seçilip kart ID belirtilmediyse fırlatılır
+     */
     private void validatePaymentInfo(ApplicationRequestDTO request) {
         PaymentMethod method = request.getPaymentMethod();
         BusinessExceptionUtil.businessExceptionCheckerAndThrowException(method == null, "Ödeme yöntemi seçilmelidir", HttpStatus.BAD_REQUEST);
 
-        switch (method) {
-            case CREDIT_CARD -> validateCreditCardPayment(request);
-            case CASH -> validateCashPayment(request);
+        if (method == PaymentMethod.CREDIT_CARD) {
+            validateCreditCardPayment(request);
         }
+        // Nakit ödeme için taksit veya ekstra kontrol kalmadığından CASH durumu kaldırıldı.
     }
 
+    /**
+     * Kredi kartı ile yapılan ödemelerde gerekli alanların doldurulup doldurulmadığını doğrular.
+     *
+     * @param request Doğrulanacak başvuru verilerini içeren {@link ApplicationRequestDTO} nesnesi
+     * @throws BusinessException Kredi kartı ID bilgisi eksikse fırlatılır
+     */
     private void validateCreditCardPayment(ApplicationRequestDTO request) {
-        BusinessExceptionUtil.businessExceptionCheckerAndThrowException(request.getInstallmentCount() == null || request.getInstallmentCount() < 1, "Kredi kartı ödeme için taksit sayısı 1'den büyük olmalıdır", HttpStatus.BAD_REQUEST);
         BusinessExceptionUtil.businessExceptionCheckerAndThrowException(request.getCardId() == null, "Kredi kartı ödeme için kart ID gereklidir", HttpStatus.BAD_REQUEST);
-        BusinessExceptionUtil.businessExceptionCheckerAndThrowException(request.getCvcNo() == null || request.getCvcNo().trim().isEmpty(), "Kredi kartı ödeme için CVC kodu gereklidir", HttpStatus.BAD_REQUEST);
     }
 
-    private void validateCashPayment(ApplicationRequestDTO request) {
-        if (request.getInstallmentCount() != null && request.getInstallmentCount() != 1) {
-            log.warn("Nakit ödeme seçilmiş ancak taksit sayısı 1'den farklı. Taksit sayısı 1 olarak ayarlanacaktır");
-        }
-    }
-
+    /**
+     * Başvuru nesnesine ödeme yöntemi, taksit sayısı ve kart ID bilgilerini atar.
+     *
+     * @param application Ödeme bilgileri güncellenecek {@link ApplicationEntity} nesnesi
+     * @param request     Kaynak ödeme verilerini barındıran {@link ApplicationRequestDTO} nesnesi
+     */
     private void setPaymentInfo(ApplicationEntity application, ApplicationRequestDTO request) {
-
         boolean isCash = request.getPaymentMethod() == PaymentMethod.CASH;
+
         application.setPaymentMethod(request.getPaymentMethod());
-        application.setInstallmentCount(isCash ? 1 : request.getInstallmentCount());
+        // Taksit sayısı request'ten alınmıyor, sistem her zaman tek çekim (1) olarak ayarlıyor
+        application.setInstallmentCount(1);
         application.setCardId(isCash ? null : request.getCardId());
     }
 
-    private void initiateCollectionProcess(ApplicationEntity application, ApplicationRequestDTO request, CustomerResponseDTO customer, InsuranceProductResponseDTO product) {
-
-        CollectionRequestDTO collectionRequest = applicationMapper.toCollectionRequest(application, request, customer, product);
-        PaymentResponseDTO paymentResponse = FeignIntegrationUtil.executeSafely(() -> collectionServiceClient.initiateCollection(collectionRequest), "Tahsilat servisi bulunamadı.", "Tahsilat bilgileri geçersiz", "Tahsilat");
-        log.info("Tahsilat işlemi başarıyla başlatıldı. Application ID: {}, Transaction ID: {}", application.getId(), paymentResponse.getTransactionId());
-    }
-
+    /**
+     * Verilen ID değerine göre veritabanından başvuru kaydını çeker; bulunamazsa hata fırlatır.
+     *
+     * @param applicationId Aranacak başvurunun benzersiz ID'si
+     * @return Bulunan {@link ApplicationEntity} nesnesi
+     * @throws BusinessException Belirtilen ID ile eşleşen başvuru yoksa fırlatılır
+     */
     private ApplicationEntity getApplicationById(Long applicationId) {
         return applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new BusinessException("Başvuru bulunamadı. ID: " + applicationId, HttpStatus.NOT_FOUND));
     }
 
+    /**
+     * CustomerClient mikroservisi üzerinden güvenli bir şekilde müşteri bilgilerini sorgular.
+     *
+     * @param customerId Bilgileri getirilecek müşterinin ID'si
+     * @return Müşteri detaylarını içeren {@link CustomerResponseDTO} nesnesi
+     * @throws BusinessException Dış servise ulaşılamazsa veya müşteri bulunamazsa fırlatılır
+     */
     private CustomerResponseDTO getCustomerSafely(Long customerId) {
         return FeignIntegrationUtil.executeSafely(() -> customerClient.getCustomerById(customerId), "Müşteri bulunamadı. Hatalı Müşteri ID: " + customerId, "Geçersiz müşteri talebi.", "Müşteri");
     }
 
+    /**
+     * ProductClient mikroservisi üzerinden güvenli bir şekilde sigorta ürün bilgilerini sorgular.
+     *
+     * @param productId Bilgileri getirilecek ürünün ID'si
+     * @return Ürün detaylarını içeren {@link InsuranceProductResponseDTO} nesnesi
+     * @throws BusinessException Dış servise ulaşılamazsa veya ürün bulunamazsa fırlatılır
+     */
     private InsuranceProductResponseDTO getProductSafely(Long productId) {
         return FeignIntegrationUtil.executeSafely(() -> productClient.getProduct(productId), "Ürün bulunamadı. Hatalı Ürün ID: " + productId, "Geçersiz ürün talebi.", "Ürün");
     }
